@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query, isDbConnected } = require('../db');
+const { query, isDbConnected, checkDbHealth, formatDbError } = require('../db');
 const { extractFace, matchFace, isServiceHealthy } = require('../services/faceService');
 
 // Format helper for duration
@@ -32,7 +32,10 @@ function formatTime12(dateObj) {
 router.get('/status', async (req, res) => {
   try {
     const aiOnline = await isServiceHealthy();
-    const dbOnline = isDbConnected();
+    let dbOnline = isDbConnected();
+    if (!dbOnline && (process.env.DATABASE_URL || process.env.DB_HOST)) {
+      dbOnline = await checkDbHealth();
+    }
 
     let stats = {
       totalEmployees: 0,
@@ -68,7 +71,7 @@ router.get('/status', async (req, res) => {
           punchedOutToday: Number(todayStats.rows[0].punched_out_today),
         };
       } catch (dbQueryErr) {
-        console.warn('[API /status] Failed to fetch live DB stats:', dbQueryErr.message);
+        console.warn('[API /status] Failed to fetch live DB stats:', formatDbError(dbQueryErr));
       }
     }
 
@@ -80,7 +83,7 @@ router.get('/status', async (req, res) => {
       stats,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -108,7 +111,7 @@ router.get('/employees', async (req, res) => {
     `);
     res.json({ success: true, employees: result.rows });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -148,7 +151,7 @@ router.get('/employees/:employeeCode', async (req, res) => {
 
     res.json({ success: true, employee: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -237,7 +240,7 @@ router.post('/biometrics/register', async (req, res) => {
     });
   } catch (err) {
     console.error('[Register Error]', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -408,7 +411,7 @@ router.post('/biometrics/punch-in', async (req, res) => {
     });
   } catch (err) {
     console.error('[Punch-In Error]', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -590,7 +593,7 @@ router.post('/biometrics/punch-out', async (req, res) => {
     });
   } catch (err) {
     console.error('[Punch-Out Error]', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -621,7 +624,7 @@ router.get('/attendance/today', async (req, res) => {
     `);
     res.json({ success: true, attendances: result.rows });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 
@@ -646,7 +649,7 @@ router.get('/attendance/logs', async (req, res) => {
     `);
     res.json({ success: true, logs: result.rows });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: formatDbError(err) });
   }
 });
 

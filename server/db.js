@@ -29,6 +29,25 @@ function isDbConnected() {
   return dbConnected;
 }
 
+function formatDbError(err) {
+  if (!err) return 'Unknown database error';
+  if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+    return err.errors.map(e => e.message || e.code).join('; ');
+  }
+  return err.message || err.code || String(err);
+}
+
+async function checkDbHealth() {
+  try {
+    await pool.query('SELECT 1');
+    dbConnected = true;
+    return true;
+  } catch (err) {
+    dbConnected = false;
+    return false;
+  }
+}
+
 /**
  * Auto-initializes PostgreSQL tables and seeds the authorized employees catalog
  */
@@ -134,7 +153,7 @@ async function initializeDatabase() {
     console.log(`[DB] Database schema and authorized employee catalog (${employeeCatalog.length} records) verified.`);
   } catch (err) {
     dbConnected = false;
-    console.error('[DB] Database initialization error:', err.message);
+    console.error('[DB] Database initialization error:', formatDbError(err));
     throw err;
   } finally {
     client.release();
@@ -146,4 +165,6 @@ module.exports = {
   query,
   initializeDatabase,
   isDbConnected,
+  checkDbHealth,
+  formatDbError,
 };
