@@ -1,12 +1,12 @@
 # Multi-runtime Dockerfile for Node.js Express + Python InsightFace AI
 FROM node:20-bookworm-slim
 
-# Install Python 3.11, pip, and required system libraries
+# Install Python 3.11, pip, libgomp1 (required for onnxruntime OpenMP), and curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
-    python3-dev \
-    build-essential \
+    libgomp1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

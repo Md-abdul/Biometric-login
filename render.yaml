@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: Biometric-login-server
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: PYTHON_SERVICE_PORT
+        value: 5001
+      - key: DATABASE_URL
+        sync: false
