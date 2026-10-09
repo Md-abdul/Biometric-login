@@ -2,13 +2,23 @@ require('dotenv').config();
 const { Pool } = require('pg');
 const employeeCatalog = require('./data/employeeData');
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'root@1234',
-  database: process.env.DB_NAME || 'biomatric_login',
-});
+const isCloudDb = !!process.env.DATABASE_URL || (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1');
+
+const poolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+    }
+  : {
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT) || 5432,
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'root@1234',
+      database: process.env.DB_NAME || 'biomatric_login',
+      ssl: isCloudDb || process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    };
+
+const pool = new Pool(poolConfig);
 
 // Helper for query execution
 const query = (text, params) => pool.query(text, params);

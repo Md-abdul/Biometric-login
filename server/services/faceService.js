@@ -4,7 +4,14 @@ const path = require('path');
 
 const PYTHON_PORT = process.env.PYTHON_SERVICE_PORT || 5001;
 const PYTHON_URL = `http://127.0.0.1:${PYTHON_PORT}`;
-const PYTHON_EXE = process.env.PYTHON_PATH || 'python';
+
+// Dynamically resolve python executable with safety fallback for cloud Linux environments
+let configuredPython = process.env.PYTHON_PATH || (process.platform === 'win32' ? 'python' : 'python3');
+if (process.platform !== 'win32' && /^[a-zA-Z]:\\/.test(configuredPython)) {
+  console.warn(`[FaceService] Windows path detected on Linux platform: "${configuredPython}". Falling back to "python3".`);
+  configuredPython = 'python3';
+}
+const PYTHON_EXE = configuredPython;
 const SCRIPT_PATH = path.join(__dirname, '..', 'python', 'face_service.py');
 
 let pythonProcess = null;
@@ -51,9 +58,9 @@ async function startFaceService() {
     pythonProcess = null;
   });
 
-  // Poll for up to 25 seconds for the service to become ready
+  // Poll for up to 60 seconds for the service to become ready (allows time for cloud model download/init)
   const startTime = Date.now();
-  while (Date.now() - startTime < 25000) {
+  while (Date.now() - startTime < 60000) {
     const healthy = await isServiceHealthy();
     if (healthy) {
       console.log(`[FaceService] Python InsightFace service is READY and active at ${PYTHON_URL}!`);
