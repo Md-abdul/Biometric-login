@@ -13,7 +13,7 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt ./
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+RUN pip3 install --no-cache-dir --prefer-binary --break-system-packages -r requirements.txt
 
 # Install Node dependencies
 COPY package*.json ./
