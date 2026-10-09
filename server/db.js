@@ -23,6 +23,12 @@ const pool = new Pool(poolConfig);
 // Helper for query execution
 const query = (text, params) => pool.query(text, params);
 
+let dbConnected = false;
+
+function isDbConnected() {
+  return dbConnected;
+}
+
 /**
  * Auto-initializes PostgreSQL tables and seeds the authorized employees catalog
  */
@@ -124,8 +130,10 @@ async function initializeDatabase() {
       );
     }
 
+    dbConnected = true;
     console.log(`[DB] Database schema and authorized employee catalog (${employeeCatalog.length} records) verified.`);
   } catch (err) {
+    dbConnected = false;
     console.error('[DB] Database initialization error:', err.message);
     throw err;
   } finally {
@@ -137,4 +145,5 @@ module.exports = {
   pool,
   query,
   initializeDatabase,
+  isDbConnected,
 };

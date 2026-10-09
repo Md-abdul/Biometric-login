@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db');
+const { query, isDbConnected } = require('../db');
 const { extractFace, matchFace, isServiceHealthy } = require('../services/faceService');
 
 // Format helper for duration
@@ -32,33 +32,52 @@ function formatTime12(dateObj) {
 router.get('/status', async (req, res) => {
   try {
     const aiOnline = await isServiceHealthy();
-    const statsResult = await query(`
-      SELECT 
-        COUNT(*) as total_employees,
-        COUNT(CASE WHEN face_registered = TRUE THEN 1 END) as registered_faces
-      FROM employees;
-    `);
+    const dbOnline = isDbConnected();
 
-    const todayStats = await query(`
-      SELECT 
-        COUNT(*) as present_today,
-        COUNT(CASE WHEN punch_out_time IS NULL THEN 1 END) as currently_in,
-        COUNT(CASE WHEN punch_out_time IS NOT NULL THEN 1 END) as punched_out_today
-      FROM attendances
-      WHERE date = CURRENT_DATE;
-    `);
+    let stats = {
+      totalEmployees: 0,
+      registeredFaces: 0,
+      presentToday: 0,
+      currentlyIn: 0,
+      punchedOutToday: 0,
+    };
+
+    if (dbOnline) {
+      try {
+        const statsResult = await query(`
+          SELECT 
+            COUNT(*) as total_employees,
+            COUNT(CASE WHEN face_registered = TRUE THEN 1 END) as registered_faces
+          FROM employees;
+        `);
+
+        const todayStats = await query(`
+          SELECT 
+            COUNT(*) as present_today,
+            COUNT(CASE WHEN punch_out_time IS NULL THEN 1 END) as currently_in,
+            COUNT(CASE WHEN punch_out_time IS NOT NULL THEN 1 END) as punched_out_today
+          FROM attendances
+          WHERE date = CURRENT_DATE;
+        `);
+
+        stats = {
+          totalEmployees: Number(statsResult.rows[0].total_employees),
+          registeredFaces: Number(statsResult.rows[0].registered_faces),
+          presentToday: Number(todayStats.rows[0].present_today),
+          currentlyIn: Number(todayStats.rows[0].currently_in),
+          punchedOutToday: Number(todayStats.rows[0].punched_out_today),
+        };
+      } catch (dbQueryErr) {
+        console.warn('[API /status] Failed to fetch live DB stats:', dbQueryErr.message);
+      }
+    }
 
     res.json({
       success: true,
       service: 'HRMS Biometric Terminal',
       aiEngine: aiOnline ? 'Online (InsightFace ArcFace 2.1)' : 'Offline',
-      stats: {
-        totalEmployees: Number(statsResult.rows[0].total_employees),
-        registeredFaces: Number(statsResult.rows[0].registered_faces),
-        presentToday: Number(todayStats.rows[0].present_today),
-        currentlyIn: Number(todayStats.rows[0].currently_in),
-        punchedOutToday: Number(todayStats.rows[0].punched_out_today),
-      },
+      database: dbOnline ? 'Online (PostgreSQL)' : 'Offline (Set DATABASE_URL in Render environment)',
+      stats,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
