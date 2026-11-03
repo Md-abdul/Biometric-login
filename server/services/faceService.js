@@ -30,6 +30,7 @@ async function isServiceHealthy() {
 
 /**
  * Spawns the Python InsightFace microservice and waits until it is ready.
+ * startFaceService took an healty callback function and it check there env and cwd with settime
  */
 async function startFaceService() {
   const alreadyRunning = await isServiceHealthy();
